@@ -61,7 +61,7 @@ def generate_trade_details(signal: str, entry_price: float):
     else:
         sl = entry_price * 1.02
         tp = entry_price * 0.97
-    return round(entry_price, 2), round(sl, 2), round(tp, 2)
+    return round(entry_price, 6), round(sl, 6), round(tp, 6)
 
 def job():
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -84,7 +84,6 @@ def job():
         except Exception as e:
             print(f"{symbol}: error {e}")
 
-# Планировщик
 if __name__ == "__main__":
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(job, "interval", minutes=5, next_run_time=datetime.now(timezone.utc))
