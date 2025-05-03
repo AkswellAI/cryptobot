@@ -11,11 +11,10 @@ CHAT_ID            = os.getenv("CHAT_ID")
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 
-# Проверка
 if not all([TELEGRAM_TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
     raise RuntimeError("Missing required environment variables")
 
-# Binance API
+# Binance клиент
 binance = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 
 def send_telegram_message(text: str):
@@ -70,12 +69,13 @@ def generate_trade_details(signal: str, entry_price: float):
     return round(entry_price, 2), round(sl, 2), round(tp, 2)
 
 def job():
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    print(f"[{now}] Job started.")
     symbols = get_top_symbols(100)
     for symbol in symbols:
         try:
-            df15 = get_klines(symbol, Client.KLINE_INTERVAL_15MINUTE)
-            signal = check_signal(df15)
+            df = get_klines(symbol, Client.KLINE_INTERVAL_15MINUTE)
+            signal = check_signal(df)
 
             if signal:
                 price = float(binance.get_symbol_ticker(symbol=symbol)['price'])
@@ -89,9 +89,10 @@ def job():
         except Exception as e:
             print(f"{symbol}: error {e}")
 
+# Планировщик
 if __name__ == "__main__":
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(job, "interval", minutes=5, next_run_time=datetime.now(timezone.utc))
-    print("Bot started.")
+    print("Bot started. Scheduler running...")
     job()
     scheduler.start()
