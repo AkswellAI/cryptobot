@@ -11,49 +11,23 @@ CHAT_ID            = os.getenv("CHAT_ID")
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 
-# 💡 Выводим значения в лог Railway
-print("TELEGRAM_TOKEN:", TELEGRAM_TOKEN)
-print("CHAT_ID:", CHAT_ID)
-print("BINANCE_API_KEY:", BINANCE_API_KEY)
-print("BINANCE_API_SECRET:", BINANCE_API_SECRET)
-
 # Проверка
 if not all([TELEGRAM_TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
     raise RuntimeError("Missing required environment variables")
 
-import os
-import requests
-import pandas as pd
-from binance.client import Client
-from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime, timezone
-
-# Загружаем переменные окружения
-TELEGRAM_TOKEN     = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID            = os.getenv("CHAT_ID")
-BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
-BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
-
-# Проверка наличия всех ключей
-if not all([TELEGRAM_TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
-    raise RuntimeError("Missing required environment variables")
-
-# Binance клиент
+# Binance API
 binance = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
 
-# Telegram уведомление
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown"})
 
-# Получаем топ‑100 пар
 def get_top_symbols(limit: int = 100) -> list[str]:
     tickers = binance.get_ticker()
     usdt = [t for t in tickers if t['symbol'].endswith('USDT')]
     sorted_ = sorted(usdt, key=lambda t: float(t['quoteVolume']), reverse=True)
     return [t['symbol'] for t in sorted_[:limit]]
 
-# Свечи
 def get_klines(symbol: str, interval: str, limit: int = 100) -> pd.DataFrame:
     kl = binance.get_klines(symbol=symbol, interval=interval, limit=limit)
     df = pd.DataFrame(kl, columns=[
@@ -63,7 +37,6 @@ def get_klines(symbol: str, interval: str, limit: int = 100) -> pd.DataFrame:
     df['close'] = df['close'].astype(float)
     return df
 
-# RSI
 def calculate_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     delta = close.diff()
     up, down = delta.clip(lower=0), -delta.clip(upper=0)
@@ -72,7 +45,6 @@ def calculate_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     rs = ma_up / ma_down
     return 100 - (100 / (1 + rs))
 
-# MA + RSI логика
 def check_signal(df: pd.DataFrame) -> str | None:
     df['ma_short'] = df['close'].rolling(10).mean()
     df['ma_long']  = df['close'].rolling(50).mean()
@@ -88,7 +60,6 @@ def check_signal(df: pd.DataFrame) -> str | None:
         return "SELL"
     return None
 
-# SL и TP
 def generate_trade_details(signal: str, entry_price: float):
     if signal == "BUY":
         sl = entry_price * 0.98
@@ -98,36 +69,29 @@ def generate_trade_details(signal: str, entry_price: float):
         tp = entry_price * 0.97
     return round(entry_price, 2), round(sl, 2), round(tp, 2)
 
-# Главная логика
 def job():
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    print(f"\n[{now}] Checking top‑100 pairs (15m & 1h)...")
     symbols = get_top_symbols(100)
     for symbol in symbols:
         try:
             df15 = get_klines(symbol, Client.KLINE_INTERVAL_15MINUTE)
-            df60 = get_klines(symbol, Client.KLINE_INTERVAL_1HOUR)
-            sig15 = check_signal(df15)
-            sig60 = check_signal(df60)
+            signal = check_signal(df15)
 
-            if sig15 and sig15 == sig60:
-                entry, sl, tp = generate_trade_details(sig15, float(binance.get_symbol_ticker(symbol=symbol)['price']))
+            if signal:
+                price = float(binance.get_symbol_ticker(symbol=symbol)['price'])
+                entry, sl, tp = generate_trade_details(signal, price)
                 message = (
                     f"*{symbol}* ({now})\n"
-                    f"Timeframes: 15m & 1h → *{sig15}*\n"
+                    f"Timeframe: 15m → *{signal}*\n"
                     f"Entry: `{entry}`  SL: `{sl}`  TP: `{tp}`"
                 )
-                print(f"{symbol}: sending {sig15} signal")
                 send_telegram_message(message)
-            else:
-                print(f"{symbol}: no signal (15m={sig15}, 1h={sig60})")
         except Exception as e:
             print(f"{symbol}: error {e}")
 
-# Планировщик
 if __name__ == "__main__":
     scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(job, "interval", minutes=5, next_run_time=datetime.now(timezone.utc))
-    print("Bot started on Railway.")
+    print("Bot started.")
     job()
     scheduler.start()
