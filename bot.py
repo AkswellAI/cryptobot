@@ -9,7 +9,6 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timezone
 
 # 1) Load environment variables
-load_dotenv()
 TELEGRAM_TOKEN     = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID            = os.getenv("CHAT_ID")
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
