@@ -45,17 +45,12 @@ def calculate_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     return 100 - (100 / (1 + rs))
 
 def check_signal(df: pd.DataFrame) -> str | None:
-    df['ma_short'] = df['close'].rolling(10).mean()
-    df['ma_long']  = df['close'].rolling(50).mean()
-    df['rsi']      = calculate_rsi(df['close'], 14)
-
-    prev_s, prev_l = df['ma_short'].iloc[-2], df['ma_long'].iloc[-2]
-    curr_s, curr_l = df['ma_short'].iloc[-1], df['ma_long'].iloc[-1]
+    df['rsi'] = calculate_rsi(df['close'], 14)
     curr_rsi = df['rsi'].iloc[-1]
 
-    if prev_s < prev_l and curr_s > curr_l and curr_rsi < 30:
+    if curr_rsi < 30:
         return "BUY"
-    if prev_s > prev_l and curr_s < curr_l and curr_rsi > 70:
+    if curr_rsi > 70:
         return "SELL"
     return None
 
@@ -74,7 +69,7 @@ def job():
     symbols = get_top_symbols(100)
     for symbol in symbols:
         try:
-            df = get_klines(symbol, Client.KLINE_INTERVAL_15MINUTE)
+            df = get_klines(symbol, Client.KLINE_INTERVAL_1MINUTE)
             signal = check_signal(df)
 
             if signal:
@@ -82,7 +77,7 @@ def job():
                 entry, sl, tp = generate_trade_details(signal, price)
                 message = (
                     f"*{symbol}* ({now})\n"
-                    f"Timeframe: 15m → *{signal}*\n"
+                    f"Timeframe: 1m → *{signal}*\n"
                     f"Entry: `{entry}`  SL: `{sl}`  TP: `{tp}`"
                 )
                 send_telegram_message(message)
