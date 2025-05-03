@@ -11,6 +11,29 @@ CHAT_ID            = os.getenv("CHAT_ID")
 BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
 BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 
+# 💡 Выводим значения в лог Railway
+print("TELEGRAM_TOKEN:", TELEGRAM_TOKEN)
+print("CHAT_ID:", CHAT_ID)
+print("BINANCE_API_KEY:", BINANCE_API_KEY)
+print("BINANCE_API_SECRET:", BINANCE_API_SECRET)
+
+# Проверка
+if not all([TELEGRAM_TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
+    raise RuntimeError("Missing required environment variables")
+
+import os
+import requests
+import pandas as pd
+from binance.client import Client
+from apscheduler.schedulers.blocking import BlockingScheduler
+from datetime import datetime, timezone
+
+# Загружаем переменные окружения
+TELEGRAM_TOKEN     = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID            = os.getenv("CHAT_ID")
+BINANCE_API_KEY    = os.getenv("BINANCE_API_KEY")
+BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
+
 # Проверка наличия всех ключей
 if not all([TELEGRAM_TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
     raise RuntimeError("Missing required environment variables")
