@@ -1,3 +1,4 @@
+```python
 import logging
 import ccxt
 import pandas as pd
@@ -14,11 +15,9 @@ LIMIT            = 100
 # Настройки стратегий
 VOLUME_MULTIPLIER = 1.2   # для breakout
 WINDOW            = 20    # для breakout и среднего объёма
-
 EMA_WINDOW        = 21    # для RSI+MA+Vol
 RSI_WINDOW        = 14
 VOLUME_WINDOW     = 20
-
 EMA_FAST          = 9     # для EMA9/21+VWAP+StochRSI
 EMA_SLOW          = 21
 STOCHRSI_LEN      = 14
@@ -67,7 +66,6 @@ def fetch_ohlcv(symbol):
     return df
 
 # ====== Стратегии ======
-# (Стратегии остались без изменений, функции детектори...
 def detect_breakout(symbol, df):
     resistance = df['high'].rolling(WINDOW).max().iloc[-2]
     support    = df['low'].rolling(WINDOW).min().iloc[-2]
@@ -93,6 +91,7 @@ def detect_breakout(symbol, df):
             f"SL: `{sl_short:.6f}`"
         )
     return None
+
 
 def detect_rsi_ma_volume(symbol, df):
     df['ema']     = ta.trend.ema_indicator(df['close'], window=EMA_WINDOW)
@@ -125,6 +124,7 @@ def detect_rsi_ma_volume(symbol, df):
             f"SL: `{sl_short:.6f}`"
         )
     return None
+
 
 def detect_ema_vwap_stochrsi(symbol, df):
     df['ema_fast'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
@@ -181,10 +181,16 @@ async def check_for_signals(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # ====== Запуск бота ======
 def main() -> None:
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .drop_pending_updates()
+        .build()
+    )
     app.add_handler(CommandHandler('start', start))
     app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
     app.run_polling()
 
 if __name__ == '__main__':
     main()
+```
