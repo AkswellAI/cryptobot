@@ -180,7 +180,6 @@ def main() -> None:
     app = (
         ApplicationBuilder()
         .token(TOKEN)
-        .drop_pending_updates()
         .build()
     )
     app.add_handler(CommandHandler('start', start))
