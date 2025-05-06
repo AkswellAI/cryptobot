@@ -1,4 +1,3 @@
-```python
 import logging
 import ccxt
 import pandas as pd
@@ -48,7 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 # ====== Топ-200 пар по объёму ======
-def get_top_symbols(limit=200):
+def get_top_symbols(limit: int = 200) -> list[str]:
     tickers = exchange.fetch_tickers()
     usdt_pairs = [s for s in tickers.keys() if s.endswith('/USDT')]
     sorted_pairs = sorted(
@@ -59,14 +58,14 @@ def get_top_symbols(limit=200):
     return sorted_pairs[:limit]
 
 # ====== Загрузка OHLCV ======
-def fetch_ohlcv(symbol):
+def fetch_ohlcv(symbol: str) -> pd.DataFrame:
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe=TIMEFRAME, limit=LIMIT)
     df = pd.DataFrame(ohlcv, columns=['timestamp','open','high','low','close','volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     return df
 
 # ====== Стратегии ======
-def detect_breakout(symbol, df):
+def detect_breakout(symbol: str, df: pd.DataFrame) -> str | None:
     resistance = df['high'].rolling(WINDOW).max().iloc[-2]
     support    = df['low'].rolling(WINDOW).min().iloc[-2]
     last, prev = df.iloc[-1], df.iloc[-2]
@@ -92,8 +91,7 @@ def detect_breakout(symbol, df):
         )
     return None
 
-
-def detect_rsi_ma_volume(symbol, df):
+def detect_rsi_ma_volume(symbol: str, df: pd.DataFrame) -> str | None:
     df['ema']     = ta.trend.ema_indicator(df['close'], window=EMA_WINDOW)
     df['rsi']     = ta.momentum.RSIIndicator(df['close'], window=RSI_WINDOW).rsi()
     df['avg_vol'] = df['volume'].rolling(VOLUME_WINDOW).mean()
@@ -125,8 +123,7 @@ def detect_rsi_ma_volume(symbol, df):
         )
     return None
 
-
-def detect_ema_vwap_stochrsi(symbol, df):
+def detect_ema_vwap_stochrsi(symbol: str, df: pd.DataFrame) -> str | None:
     df['ema_fast'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
     df['ema_slow'] = df['close'].ewm(span=EMA_SLOW, adjust=False).mean()
     vp = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
@@ -179,7 +176,6 @@ async def check_for_signals(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.error(f"Error on {symbol} [{strat}]: {e}")
 
-# ====== Запуск бота ======
 def main() -> None:
     app = (
         ApplicationBuilder()
@@ -193,4 +189,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-```
