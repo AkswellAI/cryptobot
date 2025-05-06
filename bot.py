@@ -177,11 +177,17 @@ async def check_for_signals(context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.error(f"Error on {symbol} [{strat}]: {e}")
 
 def main() -> None:
-    app = (
-        ApplicationBuilder()
-        .token(TOKEN)
-        .build()
-    )
+    # Clear any previous webhooks and pending updates on startup
+async def clear_webhook(app):
+    # Remove webhook (if set) and clear pending updates
+    await app.bot.delete_webhook(drop_pending_updates=True)
+
+app = (
+    ApplicationBuilder()
+    .token(TOKEN)
+    .post_init(clear_webhook)
+    .build()
+)
     app.add_handler(CommandHandler('start', start))
     app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
     app.run_polling()
