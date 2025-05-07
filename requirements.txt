@@ -25,6 +25,9 @@ tzlocal==5.3.1
 urllib3==2.4.0
 websockets==15.0.1
 yarl==1.20.0
+# наши зависимости
 ccxt
+pandas
+numpy
 ta
-python-telegram-bot
+python-telegram-bot>=20.0
