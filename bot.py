@@ -191,18 +191,20 @@ async def check_for_signals(context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Error on {symbol} [{strat}]: {e}")
 
 # ====== Запуск бота ======
-def main():
+def main() -> None:
     app = (
         ApplicationBuilder()
         .token(TOKEN)
         .build()
     )
+
     app.add_handler(CommandHandler('start', start))
     app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
 
-    # Сбрасываем все старые апдейты и запускаем polling
+    # Сбрасываем все старые updates и стартуем polling
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
+
 
