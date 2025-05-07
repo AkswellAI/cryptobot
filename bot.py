@@ -33,11 +33,13 @@ exchange = ccxt.binance({
 })
 
 # === 3) Константы стратегий ===
-TIMEFRAME          = "5m"
-LIMIT              = 100
+# Изменено для теста: 1-минутные свечи и 20 баров
+TIMEFRAME          = "1m"
+LIMIT              = 20
+
 STRATEGIES         = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
-STOP_LOSS_RATIO    = 0.99   # -1%
-TAKE_PROFIT_RATIO  = 1.02   # +2%
+STOP_LOSS_RATIO    = 0.99   # 1% SL
+TAKE_PROFIT_RATIO  = 1.02   # 2% TP
 VOLUME_WINDOW      = 20
 EMA_WINDOW         = 21
 RSI_WINDOW         = 14
@@ -60,10 +62,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def clear_state(application):
-    """
-    Удаляет старый webhook и сбрасывает все pending updates
-    перед началом polling.
-    """
     await application.bot.delete_webhook(drop_pending_updates=True)
 
 # === 6) Утилиты ===
@@ -92,8 +90,6 @@ def detect_breakout(symbol, df):
     if prev["close"] < res and entry > res and last["volume"] > avg_vol:
         return (
             f"🚀 [Breakout LONG] {symbol} ({TIMEFRAME})\n"
-            f"Level: {res:.6f}, Close: {entry:.6f}\n"
-            f"Vol: {last['volume']:.0f} (avg {avg_vol:.0f})\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
             f"SL:    `{sl:.6f}`"
         )
@@ -102,8 +98,6 @@ def detect_breakout(symbol, df):
         tp_s = entry * (2 - STOP_LOSS_RATIO)
         return (
             f"💥 [Breakout SHORT] {symbol} ({TIMEFRAME})\n"
-            f"Level: {sup:.6f}, Close: {entry:.6f}\n"
-            f"Vol: {last['volume']:.0f} (avg {avg_vol:.0f})\n"
             f"Entry: `{entry:.6f}`  TP: `{tp_s:.6f}`\n\n"
             f"SL:    `{sl_s:.6f}`"
         )
@@ -121,7 +115,6 @@ def detect_rsi_ma_volume(symbol, df):
     if last["rsi"] < 30 and prev["close"] < prev["ema"] and entry > last["ema"] and last["volume"] > last["avg_vol"]:
         return (
             f"📈 [RSI+MA+Vol LONG] {symbol} ({TIMEFRAME})\n"
-            f"RSI: {last['rsi']:.2f}, Price: {entry:.6f}\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
             f"SL:    `{sl:.6f}`"
         )
@@ -130,7 +123,6 @@ def detect_rsi_ma_volume(symbol, df):
         tp_s = entry * (2 - STOP_LOSS_RATIO)
         return (
             f"📉 [RSI+MA+Vol SHORT] {symbol} ({TIMEFRAME})\n"
-            f"RSI: {last['rsi']:.2f}, Price: {entry:.6f}\n"
             f"Entry: `{entry:.6f}`  TP: `{tp_s:.6f}`\n\n"
             f"SL:    `{sl_s:.6f}`"
         )
@@ -166,9 +158,7 @@ def detect_ema_vwap_stochrsi(symbol, df):
         return (
             f"🛡 [EMA/VWAP/StochRSI LONG] {symbol} ({TIMEFRAME})\n\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
-            f"SL:    `{sl:.6f}`\n"
-            f"VWAP:  {vwap_val:.6f}  Vol: {last['volume']:.0f}/{avg_vol:.0f}\n"
-            f"StochRSI: K={k:.1f} D={d:.1f}"
+            f"SL:    `{sl:.6f}`"
         )
     return None
 
@@ -196,7 +186,8 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("start", start))
-    app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
+    # Тестовый режим: каждые 60 секунд, первый запуск через 5 секунд
+    app.job_queue.run_repeating(check_for_signals, interval=60, first=5)
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
