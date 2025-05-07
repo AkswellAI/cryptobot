@@ -46,6 +46,7 @@ exchange = ccxt.binance({
         "defaultType": "future",
     },
 })
+exchange.load_markets()  # нужно, чтобы fetch_tickers работал правильно
 
 # === 3) Параметры стратегий ===
 TIMEFRAME         = "5m"
@@ -134,10 +135,10 @@ def detect_rsi_ma_volume(symbol, df):
     df["ema"]     = ta.trend.ema_indicator(df["close"], EMA_WINDOW)
     df["rsi"]     = ta.momentum.RSIIndicator(df["close"], RSI_WINDOW).rsi()
     df["avg_vol"] = df["volume"].rolling(VOLUME_WINDOW).mean()
-    last, prev = df.iloc[-1], df.iloc[-2]
-    entry = last["close"]
-    sl    = entry * STOP_LOSS_RATIO
-    tp    = entry * TAKE_PROFIT_RATIO
+    last, prev   = df.iloc[-1], df.iloc[-2]
+    entry        = last["close"]
+    sl           = entry * STOP_LOSS_RATIO
+    tp           = entry * TAKE_PROFIT_RATIO
 
     # LONG
     if last["rsi"] < 30 and prev["close"] < prev["ema"] and entry > last["ema"] and last["volume"] > last["avg_vol"]:
@@ -173,10 +174,10 @@ def detect_ema_vwap_stochrsi(symbol, df):
     delta = df["close"].diff()
     up, down = delta.clip(lower=0), -delta.clip(upper=0)
     rs  = up.rolling(STOCHRSI_LEN).mean() / down.rolling(STOCHRSI_LEN).mean()
-    rsi = 100 - (100/(1+rs))
+    rsi = 100 - (100 / (1 + rs))
     mn  = rsi.rolling(STOCHRSI_LEN).min()
     mx  = rsi.rolling(STOCHRSI_LEN).max()
-    st  = (rsi - mn)/(mx - mn) * 100
+    st  = (rsi - mn) / (mx - mn) * 100
     k   = st.rolling(STOCHRSI_K).mean().iloc[-1]
     d   = st.rolling(STOCHRSI_D).mean().iloc[-1]
 
