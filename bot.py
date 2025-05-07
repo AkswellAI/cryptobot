@@ -4,11 +4,7 @@ import pandas as pd
 import numpy as np
 import ta
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ====== Настройки ======
 TOKEN            = '7996074288:AAFO-OBnXEd0KBdddDmVLEWBwIHFLjd6Z5Q'
@@ -32,7 +28,7 @@ STRATEGIES = ['breakout', 'rsi_ma_volume', 'ema_vwap_stochrsi']
 subscribers = set()
 
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
@@ -50,8 +46,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         '✅ Subscribed to signals:\n' + '\n'.join(f'– {s}' for s in STRATEGIES)
     )
 
-async def clear_webhook(application):
-    # удаляем прежний webhook и сбрасываем ожидающие обновления
+async def clear_state(application):
+    # удаляем webhook и сбрасываем все pending updates
     await application.bot.delete_webhook(drop_pending_updates=True)
 
 # ====== Вспомогательные функции ======
@@ -90,7 +86,7 @@ def detect_breakout(symbol, df):
             f"Level: {resistance:.6f}, Close: {entry:.6f}\n"
             f"Vol: {last['volume']:.0f} (avg {avg_vol:.0f})\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
-            f"SL: `{sl:.6f}`"
+            f"SL:    `{sl:.6f}`"
         )
     if prev['close'] > support and entry < support and last['volume'] > avg_vol * VOLUME_MULTIPLIER:
         sl_s = entry * 1.01
@@ -100,7 +96,7 @@ def detect_breakout(symbol, df):
             f"Level: {support:.6f}, Close: {entry:.6f}\n"
             f"Vol: {last['volume']:.0f} (avg {avg_vol:.0f})\n"
             f"Entry: `{entry:.6f}`  TP: `{tp_s:.6f}`\n\n"
-            f"SL: `{sl_s:.6f}`"
+            f"SL:    `{sl_s:.6f}`"
         )
     return None
 
@@ -119,7 +115,7 @@ def detect_rsi_ma_volume(symbol, df):
             f"📈 [RSI+MA+Vol LONG] {symbol} ({TIMEFRAME})\n"
             f"RSI: {last['rsi']:.2f}, Price: {entry:.6f}\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
-            f"SL: `{sl:.6f}`"
+            f"SL:    `{sl:.6f}`"
         )
     if (last['rsi'] > 70 and prev['close'] > prev['ema'] and
         entry < last['ema'] and last['volume'] > last['avg_vol']):
@@ -129,7 +125,7 @@ def detect_rsi_ma_volume(symbol, df):
             f"📉 [RSI+MA+Vol SHORT] {symbol} ({TIMEFRAME})\n"
             f"RSI: {last['rsi']:.2f}, Price: {entry:.6f}\n"
             f"Entry: `{entry:.6f}`  TP: `{tp_s:.6f}`\n\n"
-            f"SL: `{sl_s:.6f}`"
+            f"SL:    `{sl_s:.6f}`"
         )
     return None
 
@@ -154,7 +150,7 @@ def detect_ema_vwap_stochrsi(symbol, df):
     k = stoch.rolling(STOCHRSI_K).mean().iloc[-1]
     d = stoch.rolling(STOCHRSI_D).mean().iloc[-1]
 
-    cross      = prev['ema_fast'] < prev['ema_slow'] and entry > last['ema_slow']
+    cross      = prev['ema_fast'] < prev['ema_slow'] and last['ema_fast'] > last['ema_slow']
     above_vwap = entry > vwap_val
     vol_ok     = last['volume'] > avg_vol
     stoch_ok   = k > d and k < 20
@@ -163,8 +159,8 @@ def detect_ema_vwap_stochrsi(symbol, df):
         return (
             f"🛡 [EMA/VWAP/StochRSI LONG] {symbol} ({TIMEFRAME})\n\n"
             f"Entry: `{entry:.6f}`  TP: `{tp:.6f}`\n\n"
-            f"SL: `{sl:.6f}`\n"
-            f"VWAP: {vwap_val:.6f}  Vol: {last['volume']:.0f}/{avg_vol:.0f}\n"
+            f"SL:    `{sl:.6f}`\n"
+            f"VWAP:  {vwap_val:.6f}  Vol: {last['volume']:.0f}/{avg_vol:.0f}\n"
             f"StochRSI: K={k:.1f} D={d:.1f}"
         )
     return None
@@ -195,16 +191,12 @@ def main() -> None:
     app = (
         ApplicationBuilder()
         .token(TOKEN)
+        .post_init(clear_state)
         .build()
     )
-
     app.add_handler(CommandHandler('start', start))
     app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
-
-    # Сбрасываем все старые updates и стартуем polling
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling()
 
 if __name__ == '__main__':
     main()
-
-
