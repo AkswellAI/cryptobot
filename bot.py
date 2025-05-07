@@ -45,13 +45,13 @@ exchange = ccxt.binance({
         "defaultType": "future",
     },
 })
-exchange.load_markets()  # важно перед fetch_tickers
+exchange.load_markets()
 
 # === 3) Параметры стратегий ===
 TIMEFRAME         = "5m"
 LIMIT             = 100
-STOP_LOSS_RATIO   = 0.99
-TAKE_PROFIT_RATIO = 1.02
+STOP_LOSS_RATIO   = 0.99    # стоп-лосс 1%
+TAKE_PROFIT_RATIO = 1.02    # тейк-профит 2%
 VOLUME_WINDOW     = 20
 EMA_WINDOW        = 21
 RSI_WINDOW        = 14
@@ -61,7 +61,7 @@ STOCHRSI_LEN      = 14
 STOCHRSI_K        = 3
 STOCHRSI_D        = 3
 TOP_LIMIT         = 200
-CHECK_INTERVAL    = 300  # 5 minutes
+CHECK_INTERVAL    = 300     # 5 минут
 
 STRATEGIES = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 subscribers = set()
@@ -82,7 +82,6 @@ async def clear_state(app):
 # === 5) Утилиты ===
 def get_top_symbols(n=TOP_LIMIT):
     tickers = exchange.fetch_tickers()
-    # фильтруем все фьючерсные пары c 'USDT' в названии
     usdt = [s for s in tickers if "/USDT" in s]
     return sorted(
         usdt,
@@ -115,7 +114,7 @@ def detect_breakout(symbol, df):
             f"TP:    `{tp:.6f}`\n"
             f"SL:    `{sl:.6f}`"
         )
-    # SHORT (TP < entry, SL > entry)
+    # SHORT
     if prev["close"] > support and entry < support and last["volume"] > avg_vol:
         tp_s = entry * STOP_LOSS_RATIO
         sl_s = entry * TAKE_PROFIT_RATIO
