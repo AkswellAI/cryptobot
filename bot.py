@@ -35,7 +35,6 @@ root.handlers = [stdout_h, stderr_h]
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
-
 logger = logging.getLogger(__name__)
 
 # === 2) Инициализация Binance Futures через CCXT ===
@@ -46,7 +45,7 @@ exchange = ccxt.binance({
         "defaultType": "future",
     },
 })
-exchange.load_markets()  # нужно, чтобы fetch_tickers работал правильно
+exchange.load_markets()  # важно перед fetch_tickers
 
 # === 3) Параметры стратегий ===
 TIMEFRAME         = "5m"
@@ -65,16 +64,12 @@ TOP_LIMIT         = 200
 CHECK_INTERVAL    = 300  # 5 minutes
 
 STRATEGIES = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
-
-# подписчики
 subscribers = set()
 
 # === 4) Хэндлеры ===
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     subscribers.add(update.effective_chat.id)
-    await update.message.reply_text(
-        "✅ Subscribed to: " + ", ".join(STRATEGIES)
-    )
+    await update.message.reply_text("✅ Subscribed to: " + ", ".join(STRATEGIES))
 
 async def error_handler(update: object, ctx: CallbackContext) -> None:
     if isinstance(ctx.error, Conflict):
@@ -87,7 +82,8 @@ async def clear_state(app):
 # === 5) Утилиты ===
 def get_top_symbols(n=TOP_LIMIT):
     tickers = exchange.fetch_tickers()
-    usdt = [s for s in tickers if s.endswith("/USDT")]
+    # фильтруем все фьючерсные пары c 'USDT' в названии
+    usdt = [s for s in tickers if "/USDT" in s]
     return sorted(
         usdt,
         key=lambda s: tickers[s].get("quoteVolume", 0),
@@ -174,10 +170,10 @@ def detect_ema_vwap_stochrsi(symbol, df):
     delta = df["close"].diff()
     up, down = delta.clip(lower=0), -delta.clip(upper=0)
     rs  = up.rolling(STOCHRSI_LEN).mean() / down.rolling(STOCHRSI_LEN).mean()
-    rsi = 100 - (100 / (1 + rs))
+    rsi = 100 - (100/(1+rs))
     mn  = rsi.rolling(STOCHRSI_LEN).min()
     mx  = rsi.rolling(STOCHRSI_LEN).max()
-    st  = (rsi - mn) / (mx - mn) * 100
+    st  = (rsi - mn)/(mx - mn) * 100
     k   = st.rolling(STOCHRSI_K).mean().iloc[-1]
     d   = st.rolling(STOCHRSI_D).mean().iloc[-1]
 
