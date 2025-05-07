@@ -61,7 +61,7 @@ STOCHRSI_LEN      = 14
 STOCHRSI_K        = 3
 STOCHRSI_D        = 3
 TOP_LIMIT         = 200
-CHECK_INTERVAL    = 300
+CHECK_INTERVAL    = 300  # 5 minutes
 
 STRATEGIES = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 
@@ -118,7 +118,7 @@ def detect_breakout(symbol, df):
             f"TP:    `{tp:.6f}`\n"
             f"SL:    `{sl:.6f}`"
         )
-    # SHORT (TP ниже входа, SL выше входа)
+    # SHORT (TP < entry, SL > entry)
     if prev["close"] > support and entry < support and last["volume"] > avg_vol:
         tp_s = entry * STOP_LOSS_RATIO
         sl_s = entry * TAKE_PROFIT_RATIO
@@ -170,14 +170,13 @@ def detect_ema_vwap_stochrsi(symbol, df):
     sl            = entry * STOP_LOSS_RATIO
     tp            = entry * TAKE_PROFIT_RATIO
 
-    # StochRSI
     delta = df["close"].diff()
     up, down = delta.clip(lower=0), -delta.clip(upper=0)
     rs  = up.rolling(STOCHRSI_LEN).mean() / down.rolling(STOCHRSI_LEN).mean()
-    rsi = 100 - (100 / (1 + rs))
+    rsi = 100 - (100/(1+rs))
     mn  = rsi.rolling(STOCHRSI_LEN).min()
     mx  = rsi.rolling(STOCHRSI_LEN).max()
-    st  = (rsi - mn) / (mx - mn) * 100
+    st  = (rsi - mn)/(mx - mn) * 100
     k   = st.rolling(STOCHRSI_K).mean().iloc[-1]
     d   = st.rolling(STOCHRSI_D).mean().iloc[-1]
 
@@ -198,6 +197,9 @@ def detect_ema_vwap_stochrsi(symbol, df):
 # === 7) Основная задача ===
 async def check_for_signals(ctx: ContextTypes.DEFAULT_TYPE):
     syms = get_top_symbols()
+    if not syms:
+        logger.warning("No symbols returned by get_top_symbols(), skipping this run")
+        return
     logger.info(f"Scanning {len(syms)} symbols; first={syms[0]}")
     for s in syms:
         df = fetch_ohlcv(s)
