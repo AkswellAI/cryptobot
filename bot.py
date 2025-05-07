@@ -195,12 +195,14 @@ def main():
     app = (
         ApplicationBuilder()
         .token(TOKEN)
-        .post_init(clear_webhook)
         .build()
     )
     app.add_handler(CommandHandler('start', start))
     app.job_queue.run_repeating(check_for_signals, interval=300, first=10)
-    app.run_polling()
+
+    # Сбрасываем все старые апдейты и запускаем polling
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
+
