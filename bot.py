@@ -65,10 +65,10 @@ exchange = ccxt.binance({
 exchange.load_markets()
 
 # === 4) Strategy params ===
-TIMEFRAME      = "1h"
+TIMEFRAME      = "4h"     # changed to 4-hour candles
 LIMIT          = 100
-LOSS_RATIO     = 0.01    # 1%
-PROFIT_RATIO   = 0.025   # 2.5%
+LOSS_RATIO     = 0.01     # 1%
+PROFIT_RATIO   = 0.025    # 2.5%
 VOLUME_WINDOW  = 20
 EMA_WINDOW     = 21
 RSI_WINDOW     = 14
@@ -78,7 +78,7 @@ STOCHRSI_LEN   = 14
 STOCHRSI_K     = 3
 STOCHRSI_D     = 3
 TOP_LIMIT      = 200
-CHECK_INTERVAL = 300     # 5 minutes
+CHECK_INTERVAL = 300      # 5 minutes
 STRATEGIES     = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 subscribers    = set()
 
@@ -88,7 +88,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👋 Bot is alive and received your /start")
     subscribers.add(update.effective_chat.id)
     await update.message.reply_text(
-        "✅ Subscribed to strategies:\n" + "\n".join(f"– {s}" for s in STRATEGIES)
+        "✅ Subscribed to strategies:\n" +
+        "\n".join(f"– {s}" for s in STRATEGIES)
     )
 
 async def error_handler(update: object, ctx: CallbackContext) -> None:
@@ -103,7 +104,11 @@ async def clear_webhook(app):
 def get_top_symbols(n=TOP_LIMIT):
     tickers = exchange.fetch_tickers()
     usdt = [s for s in tickers if "/USDT" in s]
-    return sorted(usdt, key=lambda s: tickers[s].get("quoteVolume", 0), reverse=True)[:n]
+    return sorted(
+        usdt,
+        key=lambda s: tickers[s].get("quoteVolume", 0),
+        reverse=True
+    )[:n]
 
 def fetch_ohlcv(symbol):
     data = exchange.fetch_ohlcv(symbol, timeframe=TIMEFRAME, limit=LIMIT)
@@ -116,7 +121,7 @@ def fetch_price(symbol):
     t = exchange.fetch_ticker(symbol)
     return float(t["last"])
 
-# === 7) Strategies (return dict or None) ===
+# === 7) Strategies ===
 def detect_breakout(symbol, df):
     res   = df["high"].rolling(VOLUME_WINDOW).max().iloc[-2]
     sup   = df["low"].rolling(VOLUME_WINDOW).min().iloc[-2]
@@ -133,7 +138,7 @@ def detect_breakout(symbol, df):
             f"TP:    `{tp:.6f}`\n"
             f"SL:    `{sl:.6f}`"
         )
-        return {"symbol": symbol, "side": "LONG", "entry": entry, "sl": sl, "tp": tp, "msg": msg}
+        return {"symbol":symbol, "side":"LONG", "entry":entry, "sl":sl, "tp":tp, "msg":msg}
 
     if prev["close"] > sup and entry < sup and last["volume"] > avgv:
         tp2 = entry * (1 - PROFIT_RATIO)
@@ -144,7 +149,7 @@ def detect_breakout(symbol, df):
             f"TP:    `{tp2:.6f}`\n"
             f"SL:    `{sl2:.6f}`"
         )
-        return {"symbol": symbol, "side": "SHORT", "entry": entry, "sl": sl2, "tp": tp2, "msg": msg}
+        return {"symbol":symbol, "side":"SHORT", "entry":entry, "sl":sl2, "tp":tp2, "msg":msg}
 
     return None
 
@@ -157,16 +162,16 @@ def detect_rsi_ma_volume(symbol, df):
     sl    = entry * (1 - LOSS_RATIO)
     tp    = entry * (1 + PROFIT_RATIO)
 
-    if last["rsi"] < 30 and prev["close"] < prev["ema"] and entry > last["ema"] and last["volume"] > df["avg_vol"].iloc[-1]:
+    if last["rsi"] < 30 and prev["close"] < prev["ema"] and entry > df["ema"].iloc[-1] and last["volume"] > df["avg_vol"].iloc[-1]:
         msg = (
             f"📈 [RSI+MA+Vol LONG] {symbol}\n"
             f"Entry: `{entry:.6f}`\n"
             f"TP:    `{tp:.6f}`\n"
             f"SL:    `{sl:.6f}`"
         )
-        return {"symbol": symbol, "side": "LONG", "entry": entry, "sl": sl, "tp": tp, "msg": msg}
+        return {"symbol":symbol, "side":"LONG", "entry":entry, "sl":sl, "tp":tp, "msg":msg}
 
-    if last["rsi"] > 70 and prev["close"] > prev["ema"] and entry < last["ema"] and last["volume"] > df["avg_vol"].iloc[-1]:
+    if last["rsi"] > 70 and prev["close"] > prev["ema"] and entry < df["ema"].iloc[-1] and last["volume"] > df["avg_vol"].iloc[-1]:
         tp2 = entry * (1 - PROFIT_RATIO)
         sl2 = entry * (1 + LOSS_RATIO)
         msg = (
@@ -175,7 +180,7 @@ def detect_rsi_ma_volume(symbol, df):
             f"TP:    `{tp2:.6f}`\n"
             f"SL:    `{sl2:.6f}`"
         )
-        return {"symbol": symbol, "side": "SHORT", "entry": entry, "sl": sl2, "tp": tp2, "msg": msg}
+        return {"symbol":symbol, "side":"SHORT", "entry":entry, "sl":sl2, "tp":tp2, "msg":msg}
 
     return None
 
@@ -207,7 +212,7 @@ def detect_ema_vwap_stochrsi(symbol, df):
             f"TP:    `{tp:.6f}`\n"
             f"SL:    `{sl:.6f}`"
         )
-        return {"symbol": symbol, "side": "LONG", "entry": entry, "sl": sl, "tp": tp, "msg": msg}
+        return {"symbol":symbol, "side":"LONG", "entry":entry, "sl":sl, "tp":tp, "msg":msg}
 
     return None
 
@@ -224,25 +229,34 @@ async def check_for_signals(ctx: ContextTypes.DEFAULT_TYPE):
             # send entry signal
             await ctx.bot.send_message(int(CHAT_ID), res["msg"])
             # record open trade with timezone-aware timestamp
-            open_trades.append({**res, "opened_at": datetime.now(timezone.utc).isoformat()})
+            open_trades.append({
+                **res,
+                "opened_at": datetime.now(timezone.utc).isoformat()
+            })
             daily_stats["total"] += 1
             save_trades(open_trades)
-    # SL/TP checks on live price
+
+    # SL/TP checks on live price (🟢 TP, 🔴 SL)
     still = []
     for t in open_trades:
         price = fetch_price(t["symbol"])
-        hit_tp = (t["side"]=="LONG"  and price >= t["tp"]) or (t["side"]=="SHORT" and price <= t["tp"])
-        hit_sl = (t["side"]=="LONG"  and price <= t["sl"]) or (t["side"]=="SHORT" and price >= t["sl"])
+        hit_tp = (t["side"]=="LONG"  and price >= t["tp"]) or \
+                 (t["side"]=="SHORT" and price <= t["tp"])
+        hit_sl = (t["side"]=="LONG"  and price <= t["sl"]) or \
+                 (t["side"]=="SHORT" and price >= t["sl"])
+
         if hit_tp or hit_sl:
-            kind = "TP" if hit_tp else "SL"
+            icon   = "🟢" if hit_tp else "🔴"
+            kind   = "TP"  if hit_tp else "SL"
             daily_stats["tp" if hit_tp else "sl"] += 1
             txt = (
-                f"🛑 [Trade CLOSED – {kind}] {t['symbol']}\n"
+                f"{icon} [Trade CLOSED – {kind}] {t['symbol']}\n"
                 f"Entry: `{t['entry']:.6f}`  {kind}@ `{price:.6f}`"
             )
             await ctx.bot.send_message(int(CHAT_ID), txt)
         else:
             still.append(t)
+
     open_trades[:] = still
     save_trades(open_trades)
 
@@ -251,8 +265,8 @@ async def send_daily_stats(ctx: ContextTypes.DEFAULT_TYPE):
     msg = (
         f"📊 Daily summary:\n"
         f"Total trades: {daily_stats['total']}\n"
-        f"TP hit:       {daily_stats['tp']}\n"
-        f"SL hit:       {daily_stats['sl']}"
+        f"🟢 TP hit:       {daily_stats['tp']}\n"
+        f"🔴 SL hit:       {daily_stats['sl']}"
     )
     await ctx.bot.send_message(int(CHAT_ID), msg)
     daily_stats.update(total=0, tp=0, sl=0)
