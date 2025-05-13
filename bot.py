@@ -65,10 +65,10 @@ exchange = ccxt.binance({
 exchange.load_markets()
 
 # === 4) Strategy params ===
-TIMEFRAME      = "4h"     # changed to 4-hour candles
+TIMEFRAME      = "4h"
 LIMIT          = 100
-LOSS_RATIO     = 0.01     # 1%
-PROFIT_RATIO   = 0.025    # 2.5%
+LOSS_RATIO     = 0.01
+PROFIT_RATIO   = 0.025
 VOLUME_WINDOW  = 20
 EMA_WINDOW     = 21
 RSI_WINDOW     = 14
@@ -78,7 +78,7 @@ STOCHRSI_LEN   = 14
 STOCHRSI_K     = 3
 STOCHRSI_D     = 3
 TOP_LIMIT      = 200
-CHECK_INTERVAL = 300      # 5 minutes
+CHECK_INTERVAL = 300
 STRATEGIES     = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 subscribers    = set()
 
@@ -220,15 +220,20 @@ def detect_ema_vwap_stochrsi(symbol, df):
 async def check_for_signals(ctx: ContextTypes.DEFAULT_TYPE):
     symbols = get_top_symbols()
     for s in symbols:
+        # skip if there's already an open trade for this symbol
+        if any(t["symbol"] == s for t in open_trades):
+            continue
+
         df = fetch_ohlcv(s)
         for strat in STRATEGIES:
             detector = globals()[f"detect_{strat}"]
             res = detector(s, df)
             if not res:
                 continue
+
             # send entry signal
             await ctx.bot.send_message(int(CHAT_ID), res["msg"])
-            # record open trade with timezone-aware timestamp
+            # record open trade with timestamp
             open_trades.append({
                 **res,
                 "opened_at": datetime.now(timezone.utc).isoformat()
@@ -246,9 +251,10 @@ async def check_for_signals(ctx: ContextTypes.DEFAULT_TYPE):
                  (t["side"]=="SHORT" and price >= t["sl"])
 
         if hit_tp or hit_sl:
-            icon   = "🟢" if hit_tp else "🔴"
-            kind   = "TP"  if hit_tp else "SL"
+            icon = "🟢" if hit_tp else "🔴"
+            kind = "TP" if hit_tp else "SL"
             daily_stats["tp" if hit_tp else "sl"] += 1
+
             txt = (
                 f"{icon} [Trade CLOSED – {kind}] {t['symbol']}\n"
                 f"Entry: `{t['entry']:.6f}`  {kind}@ `{price:.6f}`"
