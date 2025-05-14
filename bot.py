@@ -65,7 +65,7 @@ exchange = ccxt.binance({
 exchange.load_markets()
 
 # === 4) Strategy params ===
-TIMEFRAME      = "4h"
+TIMEFRAME      = "2h"
 LIMIT          = 100
 LOSS_RATIO     = 0.01
 PROFIT_RATIO   = 0.025
@@ -77,7 +77,7 @@ EMA_SLOW       = 21
 STOCHRSI_LEN   = 14
 STOCHRSI_K     = 3
 STOCHRSI_D     = 3
-TOP_LIMIT      = 200
+TOP_LIMIT      = 100
 CHECK_INTERVAL = 300
 STRATEGIES     = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 subscribers    = set()
