@@ -65,7 +65,7 @@ exchange = ccxt.binance({
 exchange.load_markets()
 
 # === 4) Strategy params ===
-TIMEFRAME      = "2h"
+TIMEFRAME      = "1h"
 LIMIT          = 100
 LOSS_RATIO     = 0.01
 PROFIT_RATIO   = 0.025
