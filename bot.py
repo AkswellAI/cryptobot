@@ -29,15 +29,12 @@ if not all([TOKEN, CHAT_ID, BINANCE_API_KEY, BINANCE_API_SECRET]):
 
 # === 1) Persistence file ===
 DATA_FILE = pathlib.Path("trades.json")
-
 def load_trades():
     if DATA_FILE.exists():
         return json.loads(DATA_FILE.read_text())
     return []
-
 def save_trades(trades):
     DATA_FILE.write_text(json.dumps(trades))
-
 open_trades = load_trades()
 daily_stats = {"total": 0, "tp": 0, "sl": 0}
 
@@ -65,10 +62,10 @@ exchange = ccxt.binance({
 exchange.load_markets()
 
 # === 4) Strategy params ===
-TIMEFRAME      = "1h"
+TIMEFRAME      = "4h"      # 4-часовой таймфрейм
 LIMIT          = 100
-LOSS_RATIO     = 0.01
-PROFIT_RATIO   = 0.025
+LOSS_RATIO     = 0.02      # 2%
+PROFIT_RATIO   = 0.04      # 4%
 VOLUME_WINDOW  = 20
 EMA_WINDOW     = 21
 RSI_WINDOW     = 14
@@ -77,8 +74,8 @@ EMA_SLOW       = 21
 STOCHRSI_LEN   = 14
 STOCHRSI_K     = 3
 STOCHRSI_D     = 3
-TOP_LIMIT      = 100
-CHECK_INTERVAL = 300
+TOP_LIMIT      = 100      # топ-100 монет
+CHECK_INTERVAL = 300      # 5 минут
 STRATEGIES     = ["breakout", "rsi_ma_volume", "ema_vwap_stochrsi"]
 subscribers    = set()
 
